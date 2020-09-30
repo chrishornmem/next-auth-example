@@ -22,7 +22,7 @@ export default function Header () {
                 className={styles.buttonPrimary}
                 onClick={(e) => {
                   e.preventDefault()
-                  signIn()
+                  signIn({ callbackUrl: 'http://localhost:3000/welcome' })
                 }}
               >
                 Sign in
@@ -37,10 +37,10 @@ export default function Header () {
             <a
                 href={`/api/auth/signout`}
                 className={styles.button}
-                onClick={(e) => {
-                  e.preventDefault()
-                  signOut()
-                }}
+            //     onClick={(e) => {
+            //  //     e.preventDefault()
+            //       signOut()
+            //     }}
               >
                 Sign out
               </a>
@@ -53,6 +53,7 @@ export default function Header () {
           <li className={styles.navItem}><Link href="/client"><a>Client</a></Link></li>
           <li className={styles.navItem}><Link href="/server"><a>Server</a></Link></li>
           <li className={styles.navItem}><Link href="/protected"><a>Protected</a></Link></li>
+          <li className={styles.navItem}><Link href="/protected-ssr"><a>Protected SSR</a></Link></li>
           <li className={styles.navItem}><Link href="/api-example"><a>API</a></Link></li>
         </ul>
       </nav>

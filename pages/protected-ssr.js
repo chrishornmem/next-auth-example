@@ -1,7 +1,11 @@
 // This is an example of how to protect content using server rendering
 import { getSession } from 'next-auth/client'
+import jwt from 'next-auth/jwt'
+import cookies from 'next-cookies';
+
 import Layout from '../components/layout'
 import AccessDenied from '../components/access-denied'
+const secret = process.env.SECRET
 
 export default function Page ({ content, session }) {
   // If no session exists, display access denied message
@@ -18,11 +22,20 @@ export default function Page ({ content, session }) {
 
 export async function getServerSideProps(context) {
   const session = await getSession(context)
+
+  const req = context.req;
+
+  console.log("typeof req.cookies:"+ typeof req.cookies);
+
+  req.cookies = cookies(context);
+
+  const token = await jwt.getToken({ req, secret })
+  console.log(token)
   let content = null
 
   if (session) {
     const hostname = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const options = { headers: { cookie: context.req.headers.cookie } }
+    const options = { headers: { cookie: context.req.headers } }
     const res = await fetch(`${hostname}/api/examples/protected`, options)
     const json = await res.json()
     if (json.content) { content = json.content }

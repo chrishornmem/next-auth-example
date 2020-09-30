@@ -1,45 +1,61 @@
 import NextAuth from 'next-auth'
 import Providers from 'next-auth/providers'
+//import jwt from 'jsonwebtoken';
+import axios from 'axios';
+
+const delay = (timer) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(true);
+    }, timer);
+  });
+};
+
+const ONEM_ACCOUNT_URL = process.env.ONEM_ACCOUNT_URL || 
+                       'https://authenticate.onem.zone/api_protected/account'
+
+const BASIC_AUTH_USER = process.env.BASIC_AUTH_USER;
+const BASIC_AUTH_PASS = process.env.BASIC_AUTH_PASS;
 
 // For more information on each option (and a full list of options) go to
 // https://next-auth.js.org/configuration/options
 const options = {
   // https://next-auth.js.org/configuration/providers
   providers: [
-    Providers.Email({
-      server: process.env.EMAIL_SERVER, 
-      from: process.env.EMAIL_FROM,
-    }),
-    Providers.Apple({
-      clientId: process.env.APPLE_ID,
-      clientSecret: { 
-        appleId: process.env.APPLE_ID,
-        teamId: process.env.APPLE_TEAM_ID,
-        privateKey: process.env.APPLE_PRIVATE_KEY,
-        keyId: process.env.APPLE_KEY_ID,
-      }
-    }),
-    Providers.Auth0({
-      clientId: process.env.AUTH0_ID,
-      clientSecret: process.env.AUTH0_SECRET,
-      domain: process.env.AUTH0_DOMAIN
-    }),
-    Providers.Facebook({
-      clientId: process.env.FACEBOOK_ID,
-      clientSecret: process.env.FACEBOOK_SECRET
-    }),
-    Providers.GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET
-    }),
+    // Providers.Email({
+    //   server: process.env.EMAIL_SERVER, 
+    //   from: process.env.EMAIL_FROM,
+    // }),
+    // Providers.Apple({
+    //   clientId: process.env.APPLE_ID,
+    //   clientSecret: { 
+    //     appleId: process.env.APPLE_ID,
+    //     teamId: process.env.APPLE_TEAM_ID,
+    //     privateKey: process.env.APPLE_PRIVATE_KEY,
+    //     keyId: process.env.APPLE_KEY_ID,
+    //   }
+    // }),
+    // Providers.Auth0({
+    //   clientId: process.env.AUTH0_ID,
+    //   clientSecret: process.env.AUTH0_SECRET,
+    //   domain: process.env.AUTH0_DOMAIN
+    // }),
+    // Providers.Facebook({
+    //   clientId: process.env.FACEBOOK_ID,
+    //   clientSecret: process.env.FACEBOOK_SECRET
+    // }),
+    // Providers.GitHub({
+    //   clientId: process.env.GITHUB_ID,
+    //   clientSecret: process.env.GITHUB_SECRET
+    // }),
     Providers.Google({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET
     }),
-    Providers.Twitter({
-      clientId: process.env.TWITTER_ID,
-      clientSecret: process.env.TWITTER_SECRET
-    }),
+    // Providers.Twitter({
+    //   clientId: process.env.TWITTER_ID,
+    //   clientSecret: process.env.TWITTER_SECRET
+    // }),
   ],
   // Database optional. MySQL, Maria DB, Postgres and MongoDB are supported.
   // https://next-auth.js.org/configuration/database
@@ -47,7 +63,7 @@ const options = {
   // Notes:
   // * You must to install an appropriate node_module for your database
   // * The Email provider requires a database (OAuth providers do not)
-  database: process.env.DATABASE_URL,
+  //database: process.env.DATABASE_URL,
 
   // The secret should be set to a reasonably long random string.
   // It is used to sign cookies and to sign and encrypt JSON Web Tokens, unless
@@ -75,7 +91,8 @@ const options = {
   jwt: {
     // A secret to use for key generation (you should set this explicitly)
     // secret: 'INp8IvdIyeMcoGAgFGoA61DdBglwwSqnXJZkgz8PSnw', 
-    
+    secret: process.env.SECRET,
+
     // Set to true to use encryption (default: false)
     // encryption: true,
 
@@ -83,6 +100,14 @@ const options = {
     // if you want to override the default behaviour.
     // encode: async ({ secret, token, maxAge }) => {},
     // decode: async ({ secret, token, maxAge }) => {},
+    // encode: async ({ secret, token, maxAge }) => {
+    //   const encodedToken = jwt.sign(token, secret, { algorithm: 'HS512' });
+    //   return encodedToken;
+    // },
+    // decode: async ({ secret, token, maxAge }) => {
+    //   const verify = jwt.verify(token, secret);
+    //   return verify;
+    // },
   },
 
   // You can define custom pages to override the built-in pages.
@@ -90,9 +115,9 @@ const options = {
   // pages is not specified for that route.
   // https://next-auth.js.org/configuration/pages
   pages: {
-    // signIn: '/api/auth/signin',  // Displays signin buttons
-    // signOut: '/api/auth/signout', // Displays form with sign out button
-    // error: '/api/auth/error', // Error code passed in query string as ?error=
+     signIn: '/auth/customSignin',  // Displays signin buttons
+     signOut: '/auth/customSignout', // Displays form with sign out button
+     error: '/auth/errorPage', // Error code passed in query string as ?error=
     // verifyRequest: '/api/auth/verify-request', // Used for check email page
     // newUser: null // If set, new users will be directed here on first sign in
   },
@@ -105,6 +130,29 @@ const options = {
     // redirect: async (url, baseUrl) => { return Promise.resolve(baseUrl) },
     // session: async (session, user) => { return Promise.resolve(session) },
     // jwt: async (token, user, account, profile, isNewUser) => { return Promise.resolve(token) }
+    jwt: async (token, user, account, profile, isNewUser) => {
+      const isSignin = user ? true : false;
+      if (isSignin) {
+        profile.google = profile.id
+        let response;
+        try {
+          response = await axios.post(ONEM_ACCOUNT_URL, {
+            profile,
+          },{ auth: {
+            username: BASIC_AUTH_USER,
+            password: BASIC_AUTH_PASS,
+          }})
+        } catch (error) {
+          console.error(error)
+          return Promise.resolve(null);
+        }
+        user.onemUserId = response.data.success ? response.data.result._id : null;
+        token = { ...token, ...user };
+        return Promise.resolve(token);
+      }
+
+      return Promise.resolve(token);
+    },
   },
 
   // Events are useful for logging
